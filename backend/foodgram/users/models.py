@@ -12,6 +12,7 @@ class User(AbstractUser):
         max_length=settings.LIMIT_USERNAME,
         unique=True,
         db_index=True,
+        blank=False,
         validators=(username_validator,),
         error_messages={
             "unique": "Пользователь с таким именем уже существует!",
