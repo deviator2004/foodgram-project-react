@@ -6,7 +6,6 @@ from users.validators import username_validator
 
 
 class User(AbstractUser):
-    """Класс пользователей."""
     username = models.CharField(
         verbose_name='Имя пользователя',
         max_length=settings.LIMIT_USERNAME,
