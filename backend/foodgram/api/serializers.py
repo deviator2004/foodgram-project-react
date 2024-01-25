@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from recipes.models import Tags
+from recipes.models import Ingredients, Tags
 
 
 User = get_user_model()
@@ -25,6 +25,14 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class TagsSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Tags
+        fields = '__all__'
+
+
+class IngredientsSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Ingredients
         fields = '__all__'

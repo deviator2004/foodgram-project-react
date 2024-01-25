@@ -1,4 +1,6 @@
 from django.contrib import admin
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
 
 from recipes.models import Ingredients, Recipes, Tags
 
@@ -11,12 +13,20 @@ class RecipesAdmin(admin.ModelAdmin):
     search_fields = ('name',)
 
 
+class IngredientsResourse(resources.ModelResource):
+
+    class Meta:
+        model = Ingredients
+
+
 @admin.register(Ingredients)
-class IngredientsAdmin(admin.ModelAdmin):
+class IngredientsAdmin(ImportExportModelAdmin):
 
     list_display = ('name', 'measurement_unit')
     list_filter = ('name',)
     search_fields = ('name',)
+    resource_classes = [IngredientsResourse]
+    ordering = ('name',)
 
 
 @admin.register(Tags)
