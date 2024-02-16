@@ -2,15 +2,21 @@ from django.contrib import admin
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 
-from recipes.models import Ingredients, Recipes, Tags
+from recipes.models import (Ingredients, Recipes, Tags)
 
 
 @admin.register(Recipes)
 class RecipesAdmin(admin.ModelAdmin):
 
+    readonly_fields = ('count_recipes',)
     list_display = ('name', 'author')
     list_filter = ('author', 'name', 'tags')
     search_fields = ('name',)
+
+    def count_recipes(self, object):
+        return object.in_favorited.count()
+
+    count_recipes.short_description = 'Количество добавлений в избранное'
 
 
 class IngredientsResourse(resources.ModelResource):

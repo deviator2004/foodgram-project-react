@@ -46,12 +46,6 @@ class Ingredients(BaseTagsIngredientsRecipesModel):
     class Meta:
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Ингредиенты'
-        constraints = [
-            models.UniqueConstraint(
-                fields=('name', 'measurement_unit'),
-                name='unique_name_measurement_unit'
-            )
-        ]
 
     def __str__(self):
         return self.name
@@ -75,7 +69,8 @@ class Recipes(BaseTagsIngredientsRecipesModel):
     )
     tags = models.ManyToManyField(
         Tags,
-        verbose_name='Теги'
+        verbose_name='Теги',
+        through='TagsRecipes'
     )
     cooking_time = models.PositiveSmallIntegerField(
         'Время приготовления в минутах',
@@ -86,11 +81,14 @@ class Recipes(BaseTagsIngredientsRecipesModel):
     )
     is_favorited = models.ManyToManyField(
         User,
-        related_name='favorited'
+        related_name='favorited',
+        through='RecipesIsFavorited'
     )
     is_in_shopping_cart = models.ManyToManyField(
         User,
-        related_name='shopping_cart')
+        related_name='shopping_cart',
+        through='RecipesIsInShoppingCart'
+    )
     pub_date = models.DateTimeField(
         'Дата публикации',
         auto_now_add=True,
@@ -100,7 +98,7 @@ class Recipes(BaseTagsIngredientsRecipesModel):
     class Meta:
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
-        ordering = ("pub_date",)
+        ordering = ('-pub_date',)
         default_related_name = 'recipes'
         constraints = [
             models.UniqueConstraint(
@@ -133,12 +131,36 @@ class IngredientsAmount(models.Model):
 
     class Meta:
         default_related_name = 'amounts'
-        constraints = [
-            models.UniqueConstraint(
-                fields=('recipe', 'ingredient'),
-                name='unique_recipe_ingredient'
-            )
-        ]
+        unique_together = ('ingredient', 'recipe')
+
+
+class TagsRecipes(models.Model):
+    tag = models.ForeignKey(Tags, on_delete=models.CASCADE)
+    recipe = models.ForeignKey(Recipes, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('tag', 'recipe')
+
+
+class BaseFavoritedShoppingCartModel(models.Model):
+    recipe = models.ForeignKey(Recipes, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        abstract = True
+        unique_together = ('user', 'recipe')
+
+
+class RecipesIsFavorited(BaseFavoritedShoppingCartModel):
+
+    class Meta:
+        default_related_name = 'in_favorited'
+
+
+class RecipesIsInShoppingCart(BaseFavoritedShoppingCartModel):
+
+    class Meta:
+        default_related_name = 'in_shopping_cart'
 
 
 class Subscriptions(models.Model):
@@ -151,4 +173,4 @@ class Subscriptions(models.Model):
 
     class Meta:
         verbose_name = 'подписка'
-        unique_together = ("user", "following")
+        unique_together = ('user', 'following')
