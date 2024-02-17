@@ -1,11 +1,19 @@
+from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, viewsets
+from rest_framework import filters, mixins, status, viewsets
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
-from recipes.models import Ingredients, Recipes, Tags
+from recipes.models import Ingredients, Recipes, Subscriptions, Tags
 from api.filters import RecipesFilter
 from api.serializers import (IngredientsSerializer, RecipesSerializer,
-                             TagsSerializer)
+                             TagsSerializer, UserSubscribeSerializer)
 from api.permissions import IsStaffAuthorOrReadOnly
+
+
+User = get_user_model()
 
 
 class TagsViewSet(viewsets.ReadOnlyModelViewSet):
@@ -32,7 +40,50 @@ class RecipesViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    # def get_serializer_class(self):
-    #     if self.request.method == 'GET':
-    #         return RecipesReadSerializer
-    #     return RecipesSerializer
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def subscribe(request, pk=None):
+    user = request.user
+    following = get_object_or_404(User, id=pk)
+    is_subcribe = Subscriptions.objects.filter(
+        user=user,
+        following=following
+    ).exists()
+    if request.method == 'POST':
+        if is_subcribe:
+            return Response(
+                {'error': 'Вы уже подписаны на этого пользователя'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif user == following:
+            return Response(
+                {'error': 'Нельзя подписаться на самого себя'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        else:
+            Subscriptions.objects.create(user=user, following=following)
+            serializer = UserSubscribeSerializer(following)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+    if not is_subcribe:
+        return Response(
+            {'error': 'Вы не подписаны на этого пользователя'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    Subscriptions.objects.get(user=user, following=following).delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ListViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    pass
+
+
+class SubscribesListViewSet(ListViewSet):
+    serializer_class = UserSubscribeSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        queryset = User.objects.all().prefetch_related('follower').filter(
+            follower__user=self.request.user
+        )
+        return queryset
