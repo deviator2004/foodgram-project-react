@@ -2,14 +2,16 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, mixins, status, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from recipes.models import Ingredients, Recipes, Subscriptions, Tags
+from recipes.models import (Ingredients, Recipes, RecipesIsInShoppingCart,
+                            RecipesIsFavorited, Subscriptions, Tags)
 from api.filters import RecipesFilter
 from api.serializers import (IngredientsSerializer, RecipesSerializer,
-                             TagsSerializer, UserSubscribeSerializer)
+                             ShortRecipesSerializer, TagsSerializer,
+                             UserSubscribeSerializer)
 from api.permissions import IsStaffAuthorOrReadOnly
 
 
@@ -40,6 +42,49 @@ class RecipesViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
+    def favorite_shopping_cart_recipes(self, request, pk, Model, errors):
+        recipe = Recipes.objects.get(pk=pk)
+        user = request.user
+        in_list = Model.objects.filter(
+            user=user, recipe=recipe
+        ).exists()
+        if request.method == 'POST':
+            if in_list:
+                return Response(
+                    {'error': errors['post_error']},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            Model.objects.create(user=user, recipe=recipe)
+            serializer = ShortRecipesSerializer(recipe)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        if not in_list:
+            return Response(
+                {'error': errors['delete_error']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        Model.objects.get(user=user, recipe=recipe).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(methods=['post', 'delete'], detail=True,
+            permission_classes=[IsAuthenticated])
+    def favorite(self, request, pk=None):
+        Model = RecipesIsFavorited
+        errors = {
+            'post_error': 'Рецепт уже в избранном',
+            'delete_error': 'Рецепта нет в избранном'
+        }
+        return self.favorite_shopping_cart_recipes(request, pk, Model, errors)
+
+    @action(methods=['post', 'delete'], detail=True,
+            permission_classes=[IsAuthenticated])
+    def shopping_cart(self, request, pk=None):
+        Model = RecipesIsInShoppingCart
+        errors = {
+            'post_error': 'Рецепт уже в списке покупок',
+            'delete_error': 'Рецепта нет в списке покупок'
+        }
+        return self.favorite_shopping_cart_recipes(request, pk, Model, errors)
+
 
 @api_view(['POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -61,10 +106,9 @@ def subscribe(request, pk=None):
                 {'error': 'Нельзя подписаться на самого себя'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        else:
-            Subscriptions.objects.create(user=user, following=following)
-            serializer = UserSubscribeSerializer(following)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        Subscriptions.objects.create(user=user, following=following)
+        serializer = UserSubscribeSerializer(following)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
     if not is_subcribe:
         return Response(
             {'error': 'Вы не подписаны на этого пользователя'},
@@ -74,11 +118,7 @@ def subscribe(request, pk=None):
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ListViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
-    pass
-
-
-class SubscribesListViewSet(ListViewSet):
+class SubscribesListViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = UserSubscribeSerializer
     permission_classes = (IsAuthenticated,)
 
