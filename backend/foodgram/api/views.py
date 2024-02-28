@@ -1,13 +1,16 @@
+from django.db.models import Sum
 from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from rest_framework import filters, mixins, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from recipes.models import (Ingredients, Recipes, RecipesIsInShoppingCart,
-                            RecipesIsFavorited, Subscriptions, Tags)
+from recipes.models import (Ingredients, IngredientsAmount, Recipes,
+                            RecipesIsInShoppingCart, RecipesIsFavorited,
+                            Subscriptions, Tags)
 from api.filters import RecipesFilter
 from api.serializers import (IngredientsSerializer, RecipesSerializer,
                              ShortRecipesSerializer, TagsSerializer,
@@ -43,7 +46,7 @@ class RecipesViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user)
 
     def favorite_shopping_cart_recipes(self, request, pk, Model, errors):
-        recipe = Recipes.objects.get(pk=pk)
+        recipe = get_object_or_404(Recipes, pk=pk)
         user = request.user
         in_list = Model.objects.filter(
             user=user, recipe=recipe
@@ -84,6 +87,24 @@ class RecipesViewSet(viewsets.ModelViewSet):
             'delete_error': 'Рецепта нет в списке покупок'
         }
         return self.favorite_shopping_cart_recipes(request, pk, Model, errors)
+
+    @action(methods=['get'], detail=False,
+            permission_classes=[IsAuthenticated])
+    def download_shopping_cart(self, request):
+        user = request.user
+        recipes = user.shopping_cart.all()
+        ingredients = IngredientsAmount.objects.filter(
+            recipe__in=recipes
+        ).values('ingredient').annotate(total=Sum('amount')).values_list(
+            'ingredient__name', 'total', 'ingredient__measurement_unit'
+        )
+        response = HttpResponse('Список покупок:\n', content_type='text/plain')
+        response['Content-Disposition'] = ('attachment;'
+                                           'filename="shopping_cart.txt"')
+        for ingredient in ingredients:
+            response.write(f'{ingredient[0].capitalize()}: {ingredient[1]}'
+                           f' {ingredient[2]}\n')
+        return response
 
 
 @api_view(['POST', 'DELETE'])
