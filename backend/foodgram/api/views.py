@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django_filters.rest_framework import DjangoFilterBackend
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from rest_framework import filters, mixins, status, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from recipes.models import (Ingredients, IngredientsAmount, Recipes,
                             RecipesIsInShoppingCart, RecipesIsFavorited,
                             Subscriptions, Tags)
-from api.filters import RecipesFilter
+from api.filters import IngredientsFilter, RecipesFilter
 from api.serializers import (IngredientsSerializer, RecipesSerializer,
                              ShortRecipesSerializer, TagsSerializer,
                              UserSubscribeSerializer)
@@ -31,8 +31,8 @@ class IngredientsViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredients.objects.all()
     serializer_class = IngredientsSerializer
     pagination_class = None
-    filter_backends = (filters.SearchFilter,)
-    search_fields = ('name',)
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = IngredientsFilter
 
 
 class RecipesViewSet(viewsets.ModelViewSet):
@@ -42,11 +42,22 @@ class RecipesViewSet(viewsets.ModelViewSet):
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipesFilter
 
+    def get_serializer(self, *args, **kwargs):
+        serializer_class = self.get_serializer_class()
+        kwargs.setdefault('context', self.get_serializer_context())
+        kwargs['partial'] = False
+        return serializer_class(*args, **kwargs)
+
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
     def favorite_shopping_cart_recipes(self, request, pk, Model, errors):
-        recipe = get_object_or_404(Recipes, pk=pk)
+        if not Recipes.objects.filter(pk=pk).exists():
+            return Response(
+                {'error': f'Нет рецепта с id {pk}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        recipe = Recipes.objects.get(pk=pk)
         user = request.user
         in_list = Model.objects.filter(
             user=user, recipe=recipe
@@ -128,7 +139,8 @@ def subscribe(request, pk=None):
                 status=status.HTTP_400_BAD_REQUEST
             )
         Subscriptions.objects.create(user=user, following=following)
-        serializer = UserSubscribeSerializer(following)
+        context = {'request': request}
+        serializer = UserSubscribeSerializer(following, context=context)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     if not is_subcribe:
         return Response(

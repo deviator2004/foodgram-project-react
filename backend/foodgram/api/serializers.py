@@ -1,10 +1,12 @@
 import base64
+import re
 
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
+from api.validators import tags_ingredients_validator
 from recipes.models import (Ingredients, IngredientsAmount, Recipes, Tags,
                             TagsRecipes)
 
@@ -21,6 +23,11 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'email', 'username', 'first_name', 'last_name',
             'is_subscribed'
         )
+
+    def validate_username(self, value):
+        if not re.fullmatch(r'^[w.@+-]+Z', value):
+            raise serializers.ValidationError('Запрещенные символы в username')
+        return value
 
     def get_is_subscribed(self, obj):
         user = self.context.get('request').user
@@ -97,17 +104,12 @@ class RecipesSerializer(serializers.ModelSerializer):
         ]
 
     def validate_tags(self, value):
-        for tag in value:
-            if not Tags.objects.filter(id=tag['id']).exists():
-                raise serializers.ValidationError(f'Нет тега с id {tag["id"]}')
-        return value
+        return tags_ingredients_validator('тег', Tags, value)
 
     def validate_ingredients(self, value):
+        value = tags_ingredients_validator('ингредиент', Ingredients, value)
         for ingredient in value:
-            id = ingredient['id']
-            if not Ingredients.objects.filter(id=id).exists():
-                raise serializers.ValidationError(f'Нет ингредиента с id {id}')
-            elif ingredient['amount'] <= 1:
+            if ingredient['amount'] <= 1:
                 raise serializers.ValidationError('Количество не может быть '
                                                   'меньше 1')
         return value
@@ -137,22 +139,20 @@ class RecipesSerializer(serializers.ModelSerializer):
         instance.text = validated_data.get('text', instance.image)
         instance.cooking_time = validated_data.get('cooking_time',
                                                    instance.cooking_time)
-        if 'tags' in validated_data:
-            tag_list = []
-            tags_data = validated_data.pop('tags')
-            for tag in tags_data:
-                current_tag = Tags.objects.get(id=tag['id'])
-                tag_list.append(current_tag)
-            instance.tags.set(tag_list)
-        if 'amounts' in validated_data:
-            ingredients_data = validated_data.pop('amounts')
-            instance.ingredients.clear()
-            IngredientsAmount.objects.bulk_create(
-                [IngredientsAmount(
-                    recipe=instance,
-                    ingredient=Ingredients.objects.get(id=ingredient['id']),
-                    amount=ingredient['amount']
-                ) for ingredient in ingredients_data])
+        tag_list = []
+        tags_data = validated_data.pop('tags')
+        for tag in tags_data:
+            current_tag = Tags.objects.get(id=tag['id'])
+            tag_list.append(current_tag)
+        instance.tags.set(tag_list)
+        ingredients_data = validated_data.pop('amounts')
+        instance.ingredients.clear()
+        IngredientsAmount.objects.bulk_create(
+            [IngredientsAmount(
+                recipe=instance,
+                ingredient=Ingredients.objects.get(id=ingredient['id']),
+                amount=ingredient['amount']
+            ) for ingredient in ingredients_data])
         instance.save()
         return instance
 
@@ -179,7 +179,7 @@ class ShortRecipesSerializer(serializers.ModelSerializer):
 
 class UserSubscribeSerializer(UserSerializer):
     is_subscribed = serializers.SerializerMethodField()
-    recipes = ShortRecipesSerializer(read_only=True, many=True)
+    recipes = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -191,6 +191,13 @@ class UserSubscribeSerializer(UserSerializer):
 
     def get_is_subscribed(self, obj):
         return True
+
+    def get_recipes(self, obj):
+        limit = self.context['request'].query_params.get('recipes_limit')
+        recipes = obj.recipes.all()
+        if limit is not None and len(recipes) > int(limit):
+            recipes = recipes[:int(limit)]
+        return ShortRecipesSerializer(recipes, many=True).data
 
     def get_recipes_count(self, obj):
         return obj.recipes.count()
