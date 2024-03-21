@@ -16,7 +16,7 @@ SECRET_KEY = 'django-insecure-4ffp0c5+ygu6%g*v*=dkju1&(q+2921!&=fkeipme(j#zo=h_#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['o-foodgram.sytes.net', '158.160.18.17', '127.0.0.1', 'localhost']
 
 AUTH_USER_MODEL = 'users.User'
 
@@ -120,6 +120,7 @@ DJOSER = {
     'SERIALIZERS': {
         'user': 'api.serializers.UserSerializer',
         'current_user': 'api.serializers.UserSerializer',
+        'user_create': 'api.serializers.CustomUserCreateSerializer'
     },
     'PERMISSIONS': {
         'user': ['api.permissions.IsAythForMe'],
@@ -159,7 +160,7 @@ FORBIDDEN_USERNAMES = [
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
-STATIC_URL = '/static/'
+STATIC_URL = '/static_backend/'
 STATIC_ROOT = BASE_DIR / 'collected_static'
 
 MEDIA_URL = '/media/'

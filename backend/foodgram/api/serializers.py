@@ -3,6 +3,7 @@ import re
 
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
+from djoser.serializers import UserCreateSerializer
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
@@ -24,16 +25,19 @@ class UserSerializer(serializers.ModelSerializer):
             'is_subscribed'
         )
 
-    def validate_username(self, value):
-        if not re.fullmatch(r'^[w.@+-]+Z', value):
-            raise serializers.ValidationError('Запрещенные символы в username')
-        return value
-
     def get_is_subscribed(self, obj):
         user = self.context.get('request').user
         if user.is_authenticated:
             return user.follower.filter(following=obj).exists()
         return False
+
+
+class CustomUserCreateSerializer(UserCreateSerializer):
+
+    def validate_username(self, value):
+        if not re.fullmatch(r'^[\w.@+-]+', value):
+            raise serializers.ValidationError('Запрещенные символы в username')
+        return value
 
 
 class TagsSerializer(serializers.ModelSerializer):

@@ -55,7 +55,7 @@ class RecipesViewSet(viewsets.ModelViewSet):
         if not Recipes.objects.filter(pk=pk).exists():
             return Response(
                 {'error': f'Нет рецепта с id {pk}'},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_404_NOT_FOUND
             )
         recipe = Recipes.objects.get(pk=pk)
         user = request.user
