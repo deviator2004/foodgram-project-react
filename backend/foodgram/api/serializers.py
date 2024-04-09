@@ -11,7 +11,6 @@ from api.validators import tags_ingredients_validator
 from recipes.models import (Ingredients, IngredientsAmount, Recipes, Tags,
                             TagsRecipes)
 
-
 User = get_user_model()
 
 
