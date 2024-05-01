@@ -112,7 +112,7 @@ class RecipesSerializer(serializers.ModelSerializer):
     def validate_ingredients(self, value):
         value = tags_ingredients_validator('ингредиент', Ingredients, value)
         for ingredient in value:
-            if ingredient['amount'] <= 1:
+            if int(ingredient['amount']) < 1:
                 raise serializers.ValidationError('Количество не может быть '
                                                   'меньше 1')
         return value
