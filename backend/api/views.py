@@ -10,8 +10,8 @@ from rest_framework.response import Response
 
 from api.filters import IngredientsFilter, RecipesFilter
 from api.permissions import IsStaffAuthorOrReadOnly
-from api.serializers import (IngredientsSerializer, RecipesSerializer,
-                             RecipeReadSerializer, ShortRecipesSerializer,
+from api.serializers import (IngredientsSerializer, RecipeReadSerializer,
+                             RecipesSerializer, ShortRecipesSerializer,
                              TagsSerializer, UserSubscribeSerializer)
 from recipes.models import (Ingredients, IngredientsAmount, Recipes,
                             RecipesIsFavorited, RecipesIsInShoppingCart,
