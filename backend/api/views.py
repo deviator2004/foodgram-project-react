@@ -11,8 +11,8 @@ from rest_framework.response import Response
 from api.filters import IngredientsFilter, RecipesFilter
 from api.permissions import IsStaffAuthorOrReadOnly
 from api.serializers import (IngredientsSerializer, RecipesSerializer,
-                             ShortRecipesSerializer, TagsSerializer,
-                             UserSubscribeSerializer)
+                             RecipeReadSerializer, ShortRecipesSerializer,
+                             TagsSerializer, UserSubscribeSerializer)
 from recipes.models import (Ingredients, IngredientsAmount, Recipes,
                             RecipesIsFavorited, RecipesIsInShoppingCart,
                             Subscriptions, Tags)
@@ -36,13 +36,15 @@ class IngredientsViewSet(viewsets.ReadOnlyModelViewSet):
 
 class RecipesViewSet(viewsets.ModelViewSet):
     queryset = Recipes.objects.all()
-    serializer_class = RecipesSerializer
     permission_classes = (IsStaffAuthorOrReadOnly,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipesFilter
 
     def get_serializer(self, *args, **kwargs):
-        serializer_class = self.get_serializer_class()
+        if self.request.method == 'GET':
+            serializer_class = RecipeReadSerializer
+        else:
+            serializer_class = RecipesSerializer
         kwargs.setdefault('context', self.get_serializer_context())
         kwargs['partial'] = False
         return serializer_class(*args, **kwargs)

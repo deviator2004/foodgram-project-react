@@ -2,7 +2,9 @@ from django.contrib import admin
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 
-from recipes.models import Ingredients, Recipes, Tags
+from recipes.models import (Ingredients, IngredientsAmount, Recipes,
+                            RecipesIsFavorited, RecipesIsInShoppingCart,
+                            Subscriptions, Tags)
 
 
 @admin.register(Recipes)
@@ -39,3 +41,27 @@ class IngredientsAdmin(ImportExportModelAdmin):
 class TagsAdmin(admin.ModelAdmin):
 
     list_display = ('name',)
+
+
+@admin.register(IngredientsAmount)
+class IngredientsAmountAdmin(admin.ModelAdmin):
+
+    list_display = ('recipe', 'ingredient')
+
+
+@admin.register(RecipesIsFavorited)
+class RecipesIsFavoritedAdmin(admin.ModelAdmin):
+
+    list_display = ('recipe', 'user')
+
+
+@admin.register(RecipesIsInShoppingCart)
+class RecipesIsInShoppingCartAdmin(admin.ModelAdmin):
+
+    list_display = ('recipe', 'user')
+
+
+@admin.register(Subscriptions)
+class SubscriptionsAdmin(admin.ModelAdmin):
+
+    list_display = ('user', 'following')

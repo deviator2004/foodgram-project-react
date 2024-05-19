@@ -45,6 +45,12 @@ class Ingredients(BaseTagsIngredientsRecipesModel):
     class Meta:
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Ингредиенты'
+        constraints = [
+            models.UniqueConstraint(
+                fields=('name', 'measurement_unit'),
+                name='unique_name_measurement_unit'
+            )
+        ]
 
     def __str__(self):
         return self.name
@@ -69,7 +75,6 @@ class Recipes(BaseTagsIngredientsRecipesModel):
     tags = models.ManyToManyField(
         Tags,
         verbose_name='Теги',
-        through='TagsRecipes'
     )
     cooking_time = models.PositiveSmallIntegerField(
         'Время приготовления в минутах',
@@ -77,16 +82,6 @@ class Recipes(BaseTagsIngredientsRecipesModel):
             MinValueValidator(1, message='Время приготовления'
                               'не может быть меньше минуты')
         ]
-    )
-    is_favorited = models.ManyToManyField(
-        User,
-        related_name='favorited',
-        through='RecipesIsFavorited'
-    )
-    is_in_shopping_cart = models.ManyToManyField(
-        User,
-        related_name='shopping_cart',
-        through='RecipesIsInShoppingCart'
     )
     pub_date = models.DateTimeField(
         'Дата публикации',
@@ -129,16 +124,10 @@ class IngredientsAmount(models.Model):
     )
 
     class Meta:
+        verbose_name = 'Ингредиенты в рецептах'
+        verbose_name_plural = 'Количество ингредиентов в рецептах'
         default_related_name = 'amounts'
         unique_together = ('ingredient', 'recipe')
-
-
-class TagsRecipes(models.Model):
-    tag = models.ForeignKey(Tags, on_delete=models.CASCADE)
-    recipe = models.ForeignKey(Recipes, on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = ('tag', 'recipe')
 
 
 class BaseFavoritedShoppingCartModel(models.Model):
@@ -153,12 +142,16 @@ class BaseFavoritedShoppingCartModel(models.Model):
 class RecipesIsFavorited(BaseFavoritedShoppingCartModel):
 
     class Meta:
+        verbose_name = 'Избранное'
+        verbose_name_plural = 'Рецепты в избранном'
         default_related_name = 'in_favorited'
 
 
 class RecipesIsInShoppingCart(BaseFavoritedShoppingCartModel):
 
     class Meta:
+        verbose_name = 'Список покупок'
+        verbose_name_plural = 'Рецепты в списках покупок'
         default_related_name = 'in_shopping_cart'
 
 
@@ -171,5 +164,15 @@ class Subscriptions(models.Model):
     following = models.ForeignKey(User, on_delete=models.CASCADE)
 
     class Meta:
-        verbose_name = 'подписка'
-        unique_together = ('user', 'following')
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'Подписки'
+        constraints = [
+            models.UniqueConstraint(
+                fields=('user', 'following'),
+                name='unique_user_following'
+            ),
+            models.CheckConstraint(
+                check=~models.Q(user=models.F("following")),
+                name='prevent_self_follow'
+            )
+        ]
