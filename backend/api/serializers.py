@@ -141,8 +141,8 @@ class RecipesSerializer(RecipeReadSerializer):
         value = tags_ingredients_validator('ингредиент', Ingredients, value)
         for ingredient in value:
             if int(ingredient['amount']) < 1:
-                raise serializers.ValidationError('Количество не может быть '
-                                                  'меньше 1')
+                raise serializers.ValidationError(detail='Количество не может '
+                                                  'быть меньше 1')
         return value
 
     def add_tags_ingredients(self, recipe, tags, ingredients):
@@ -205,6 +205,14 @@ class UserSubscribeSerializer(UserSerializer):
                 message='Вы уже подписаны на этого автора'
             )
         ]
+
+    def validate(self, data):
+        author = self.instance
+        user = self.context.get('request').user
+        if user == author:
+            raise serializers.ValidationError(
+                detail='Нельзя подписаться на самого себя'
+            )
 
     def get_is_subscribed(self, obj):
         return True

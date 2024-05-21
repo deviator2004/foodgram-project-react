@@ -3,8 +3,9 @@ from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import mixins, status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from djoser.views import UserViewSet
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -104,7 +105,7 @@ class RecipesViewSet(viewsets.ModelViewSet):
             permission_classes=[IsAuthenticated])
     def download_shopping_cart(self, request):
         user = request.user
-        recipes = user.shopping_cart.all()
+        recipes = Recipes.objects.filter(in_shopping_cart__user=user)
         ingredients = IngredientsAmount.objects.filter(
             recipe__in=recipes
         ).values('ingredient').annotate(total=Sum('amount')).values_list(
@@ -119,45 +120,46 @@ class RecipesViewSet(viewsets.ModelViewSet):
         return response
 
 
-@api_view(['POST', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def subscribe(request, pk=None):
-    user = request.user
-    following = get_object_or_404(User, id=pk)
-    is_subcribe = Subscriptions.objects.filter(
-        user=user,
-        following=following
-    ).exists()
-    if request.method == 'POST':
-        if is_subcribe:
+class UserSubscribesViewSet(UserViewSet):
+
+    @action(methods=['get'], detail=False,
+            permission_classes=[IsAuthenticated])
+    def subscriptions(self, request):
+        user = request.user
+        subscribeslist = User.objects.filter(follower__user=user)
+        print(subscribeslist)
+        serializer = UserSubscribeSerializer(subscribeslist, many=True)
+        serializer.context['request'] = request
+        return Response(serializer.data)
+
+    @action(methods=['post', 'delete'], detail=True,
+            permission_classes=[IsAuthenticated])
+    def subscribe(self, request, id=None):
+        user = request.user
+        following = get_object_or_404(User, id=id)
+        is_subcribe = Subscriptions.objects.filter(
+            user=user,
+            following=following
+        ).exists()
+        if request.method == 'POST':
+            if is_subcribe:
+                return Response(
+                    {'error': 'Вы уже подписаны на этого пользователя'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            elif user == following:
+                return Response(
+                    {'error': 'Нельзя подписаться на самого себя'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            Subscriptions.objects.create(user=user, following=following)
+            context = {'request': request}
+            serializer = UserSubscribeSerializer(following, context=context)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        if not is_subcribe:
             return Response(
-                {'error': 'Вы уже подписаны на этого пользователя'},
+                {'error': 'Вы не подписаны на этого пользователя'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        elif user == following:
-            return Response(
-                {'error': 'Нельзя подписаться на самого себя'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        Subscriptions.objects.create(user=user, following=following)
-        context = {'request': request}
-        serializer = UserSubscribeSerializer(following, context=context)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    if not is_subcribe:
-        return Response(
-            {'error': 'Вы не подписаны на этого пользователя'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    Subscriptions.objects.get(user=user, following=following).delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class SubscribesListViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
-    serializer_class = UserSubscribeSerializer
-    permission_classes = (IsAuthenticated,)
-
-    def get_queryset(self):
-        queryset = User.objects.all().prefetch_related('follower').filter(
-            follower__user=self.request.user
-        )
-        return queryset
+        Subscriptions.objects.get(user=user, following=following).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
