@@ -164,7 +164,7 @@ class Subscriptions(models.Model):
     following = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        # related_name='following'
+        related_name='following'
     )
 
     class Meta:
