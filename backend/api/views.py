@@ -125,9 +125,7 @@ class UserSubscribesViewSet(UserViewSet):
     @action(methods=['get'], detail=False,
             permission_classes=[IsAuthenticated])
     def subscriptions(self, request):
-        user = request.user
-        subscribeslist = User.objects.filter(follower__user=user)
-        print(subscribeslist)
+        subscribeslist = User.objects.filter(following__user=request.user)
         serializer = UserSubscribeSerializer(subscribeslist, many=True)
         serializer.context['request'] = request
         return Response(serializer.data)
