@@ -126,9 +126,10 @@ class UserSubscribesViewSet(UserViewSet):
             permission_classes=[IsAuthenticated])
     def subscriptions(self, request):
         subscribeslist = User.objects.filter(following__user=request.user)
-        serializer = UserSubscribeSerializer(subscribeslist, many=True)
+        pages = self.paginate_queryset(subscribeslist)
+        serializer = UserSubscribeSerializer(pages, many=True)
         serializer.context['request'] = request
-        return Response(serializer.data)
+        return self.get_paginated_response(serializer.data)
 
     @action(methods=['post', 'delete'], detail=True,
             permission_classes=[IsAuthenticated])
