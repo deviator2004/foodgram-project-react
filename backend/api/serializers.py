@@ -133,6 +133,11 @@ class RecipesSerializer(RecipeReadSerializer):
                 message='Вы уже создавали рецепт с таким названием'
             )
         ]
+        error_message = {
+            'ingredients': {
+                'null_or_negative': 'Количество не должно быть меньше 1'
+            }
+        }
 
     def validate_tags(self, value):
         return tags_ingredients_validator('тег', Tags, value)
@@ -141,8 +146,7 @@ class RecipesSerializer(RecipeReadSerializer):
         value = tags_ingredients_validator('ингредиент', Ingredients, value)
         for ingredient in value:
             if int(ingredient['amount']) < 1:
-                raise serializers.ValidationError({'message': 'Количество не '
-                                                  'может быть меньше 1'})
+                raise serializers.ValidationError('null_or_negative')
         return value
 
     def add_tags_ingredients(self, recipe, tags, ingredients):
