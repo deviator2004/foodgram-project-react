@@ -139,21 +139,20 @@ class RecipesSerializer(RecipeReadSerializer):
 
     def validate_ingredients(self, value):
         value = tags_ingredients_validator('ингредиент', Ingredients, value)
-        # for ingredient in value:
-        #     if int(ingredient['amount']) < 1:
-        #         raise serializers.ValidationError(
-        #             {'ingredients': 'Количество не может быть меньше 1'}
-        #         )
-        return value
-
-    def validate(self, data):
-        print(data)
-        for ingredient in data['amounts']:
+        for ingredient in value:
             if int(ingredient['amount']) < 1:
                 raise serializers.ValidationError(
-                    {'ingredients': 'Количество не может быть меньше 1'}
+                    {'amounts': 'Количество не может быть меньше 1'}
                 )
-        return data
+        return value
+
+    # def validate(self, data):
+    #     for ingredient in data['amounts']:
+    #         if int(ingredient['amount']) < 1:
+    #             raise serializers.ValidationError(
+    #                 {'amounts': 'Количество не может быть меньше 1'}
+    #             )
+    #     return data
 
     def add_tags_ingredients(self, recipe, tags, ingredients):
         recipe.tags.set(tags)
