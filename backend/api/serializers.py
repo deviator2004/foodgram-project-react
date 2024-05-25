@@ -138,7 +138,7 @@ class RecipesSerializer(RecipeReadSerializer):
         return tags_ingredients_validator('тег', Tags, value)
 
     def validate_ingredients(self, value):
-        return (tags_ingredients_validator('ингредиент', Ingredients, value))
+        return tags_ingredients_validator('ингредиент', Ingredients, value)
 
     def validate(self, data):
         for ingredient in data['amounts']:

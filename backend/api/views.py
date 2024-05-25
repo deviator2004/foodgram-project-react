@@ -53,7 +53,7 @@ class RecipesViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    def favorite_shopping_cart_recipes(self, request, pk, Model, errors):
+    def favorite_shopping_cart_create(self, request, pk, Model, errors):
         if not Recipes.objects.filter(pk=pk).exists():
             return Response(
                 {'error': f'Нет рецепта с id {pk}'},
@@ -64,15 +64,26 @@ class RecipesViewSet(viewsets.ModelViewSet):
         in_list = Model.objects.filter(
             user=user, recipe=recipe
         ).exists()
-        if request.method == 'POST':
-            if in_list:
-                return Response(
-                    {'error': errors['post_error']},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            Model.objects.create(user=user, recipe=recipe)
-            serializer = ShortRecipesSerializer(recipe)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        if in_list:
+            return Response(
+                {'error': errors['post_error']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        Model.objects.create(user=user, recipe=recipe)
+        serializer = ShortRecipesSerializer(recipe)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def favorite_shopping_cart_delete(self, request, pk, Model, errors):
+        if not Recipes.objects.filter(pk=pk).exists():
+            return Response(
+                {'error': f'Нет рецепта с id {pk}'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        recipe = Recipes.objects.get(pk=pk)
+        user = request.user
+        in_list = Model.objects.filter(
+            user=user, recipe=recipe
+        ).exists()
         if not in_list:
             return Response(
                 {'error': errors['delete_error']},
@@ -81,25 +92,39 @@ class RecipesViewSet(viewsets.ModelViewSet):
         Model.objects.get(user=user, recipe=recipe).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(methods=['post', 'delete'], detail=True,
+    @action(methods=['post'], detail=True,
             permission_classes=[IsAuthenticated])
     def favorite(self, request, pk=None):
         Model = RecipesIsFavorited
         errors = {
             'post_error': 'Рецепт уже в избранном',
+        }
+        return self.favorite_shopping_cart_create(request, pk, Model, errors)
+
+    @favorite.mapping.delete
+    def delete_favorite(self, request, pk=None):
+        Model = RecipesIsFavorited
+        errors = {
             'delete_error': 'Рецепта нет в избранном'
         }
-        return self.favorite_shopping_cart_recipes(request, pk, Model, errors)
+        return self.favorite_shopping_cart_delete(request, pk, Model, errors)
 
-    @action(methods=['post', 'delete'], detail=True,
+    @action(methods=['post'], detail=True,
             permission_classes=[IsAuthenticated])
     def shopping_cart(self, request, pk=None):
         Model = RecipesIsInShoppingCart
         errors = {
             'post_error': 'Рецепт уже в списке покупок',
+        }
+        return self.favorite_shopping_cart_create(request, pk, Model, errors)
+
+    @shopping_cart.mapping.delete
+    def delete_shopping_cart(self, request, pk=None):
+        Model = RecipesIsInShoppingCart
+        errors = {
             'delete_error': 'Рецепта нет в списке покупок'
         }
-        return self.favorite_shopping_cart_recipes(request, pk, Model, errors)
+        return self.favorite_shopping_cart_delete(request, pk, Model, errors)
 
     @action(methods=['get'], detail=False,
             permission_classes=[IsAuthenticated])
@@ -131,7 +156,7 @@ class UserSubscribesViewSet(UserViewSet):
         serializer.context['request'] = request
         return self.get_paginated_response(serializer.data)
 
-    @action(methods=['post', 'delete'], detail=True,
+    @action(methods=['post'], detail=True,
             permission_classes=[IsAuthenticated])
     def subscribe(self, request, id=None):
         user = request.user
@@ -140,21 +165,29 @@ class UserSubscribesViewSet(UserViewSet):
             user=user,
             following=following
         ).exists()
-        if request.method == 'POST':
-            if is_subcribe:
-                return Response(
-                    {'error': 'Вы уже подписаны на этого пользователя'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            elif user == following:
-                return Response(
-                    {'error': 'Нельзя подписаться на самого себя'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            Subscriptions.objects.create(user=user, following=following)
-            context = {'request': request}
-            serializer = UserSubscribeSerializer(following, context=context)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        if is_subcribe:
+            return Response(
+                {'error': 'Вы уже подписаны на этого пользователя'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        elif user == following:
+            return Response(
+                {'error': 'Нельзя подписаться на самого себя'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        Subscriptions.objects.create(user=user, following=following)
+        context = {'request': request}
+        serializer = UserSubscribeSerializer(following, context=context)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @subscribe.mapping.delete
+    def unsubscribe(self, request, id=None):
+        user = request.user
+        following = get_object_or_404(User, id=id)
+        is_subcribe = Subscriptions.objects.filter(
+            user=user,
+            following=following
+        ).exists()
         if not is_subcribe:
             return Response(
                 {'error': 'Вы не подписаны на этого пользователя'},

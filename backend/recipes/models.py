@@ -136,7 +136,12 @@ class BaseFavoritedShoppingCartModel(models.Model):
 
     class Meta:
         abstract = True
-        unique_together = ('user', 'recipe')
+        constraints = [
+            models.UniqueConstraint(
+                fields=('user', 'recipe'),
+                name='unique_user_recipe'
+            )
+        ]
 
 
 class RecipesIsFavorited(BaseFavoritedShoppingCartModel):
