@@ -92,63 +92,63 @@
 - Django Rest Framework 3.12.4
 - PostgreSQL
 
-## Как запустить проект:
-<details>
-    <summary><b>Клонируйте репозиторий</b></summary>
 
-```commandline
-git clone git@github.com:deviator2004/foodgram-project-react.git
-
-cd foodgram-project-react
+## Запуск проекта на Linux
+### Установка Docker
+Выполните команды:
+```sh
+sudo apt update
+sudo apt install curl
+url -fSL https://get.docker.com -o get-docker.sh 
+sudo sh ./get-docker.sh
 ```
-</details>
-
-<details>
-    <summary><b>Создайте и активируйте виртуальное окружение</b></summary>
-
-```shell
-# Linux/MacOS
-python3 -m venv venv
-source venv/bin/activate
-python3 -m pip install --upgrade pip
-
-# Windows
-python -m venv venv
-source venv/scripts/activate
-python -m pip install --upgrade pip
+Для сборки так же требуется утилита Docker Compose:
+```sh
+sudo apt install docker-compose-plugin 
 ```
-> В проекте используется **Python** версии **3.7**
-</details>
+Официальная документация по установке: https://docs.docker.com/engine/install/ubuntu/
 
-<details>
-    <summary>
-        <b>Установите зависимости из файла <code>requirements.txt</code></b>
-    </summary>
+### Сборка проекта
+- Клонируйте репозиторий и настройте параметры окружения
+- Соберите образы и отправьте их в Docker Hub
+- Скопируйте файл docker-compose.production.yml в корневую папку проекта
+- Запустите оркестр с помощью docker compose
 
-```shell
-pip install -r requirements.txt
+### Полезные команды Docker
+Аутентификация в Docker Hub:
+```sh
+docker login -u username 
 ```
-</details>
-
-<details>
-    <summary><b>Примените миграции</b></summary>
-
-```shell
-# Linux/MacOS
-python3 foodgram-project-react/manage.py migrate
-
-# Windows
-python foodgram-project-react/manage.py migrate
+Сборка образа:
+```sh
+docker build -t image_name . 
 ```
-</details>
-
-<details>
-    <summary><b>Запустите программу</b></summary>
-
-```shell
-python3 foodgram-project-react/manage.py runserver
+Отправка образов в Docker Hub:
+```sh
+docker push username/image_name:latest
 ```
-</details>
+Запуск всех описанных в docker-compose.yml контейнеров:
+```sh
+docker compose up
+```
+Запуск всех описанных в docker-compose.yml контейнеров в фоновом режиме:
+```sh
+docker compose up -d
+```
+Остановка всех контейнеров:
+```sh
+docker compose stop
+```
+Остановка и удаление всех контейнеров:
+```sh
+docker compose down
+```
+Остановка и удаление всех контейнеров и volume:
+```sh
+docker compose down -v
+```
+Если файл называется не docker-compose.yml, то в каждой команде после compose нужно
+указывать параметр -f имя_файла.
 
 ## Над проектом работал:
 - [Дмитрий Латыпов](https://github.com/deviator2004)
